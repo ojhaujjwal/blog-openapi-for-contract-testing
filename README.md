@@ -65,29 +65,23 @@ TODO: document how to use open
 
 ## Strict(ify) your schema
 Make the schema in your OpenAPI spec as strict and explicit as you can. Here's an example of a loosely defined schema that leaves a lot of loose ends.
-```json
-  // ...... rest of your spec
-  "components": {
-    "schemas": {
-      "Wallet": {
-        "type": "object",
-        "properties": {
-          "name": {
-              "type": "string",
-          },
-          "description": {
-              "type": "string",
-          },
-          "type": {
-              "type": "string"
-          },
-          "colour_code": {
-              "type": "string"
-          }
-        }
-      }
-    }
-  }
+```yml
+# ...... rest of your spec
+components:
+  schemas:
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+        colour_code:
+          type: string
 ```
 
 There's are a few problems with the above field
@@ -97,48 +91,41 @@ There's are a few problems with the above field
 
 The above OpenAPI spec may be good enough just for documentation purpose but it's not enough for contract testing. Let me show you how you can make the above schema more explicit:
 
-```json
-  // ...... rest of your spec
-  "components": {
-    "schemas": {
-      "Wallet": {
-        "type": "object",
-        "required": [ // required fields are mentioned here
-            "name",
-            "type",
-            "colour_code"
-        ],
-        "properties": {
-          "name": {
-              "type": "string",
-              "maxLength": 50, // max length allowed for name
-              "minLength": 1 // min length allowed for name, empty string is not allowed
-          },
-          "description": {
-              "type": "string",
-              "maxLength": 255
-          },
-          "type": {
-              "enum": [
-                  "Travel", // enum can be used for indicating supported values
-                  "HouseholdExpenses",
-                  "Event",
-                  "Other"
-              ],
-              "type": "string"
-          },
-          "colour_code": {
-              "enum": [
-                  "Red",
-                  "Blue",
-                  "Green"
-              ],
-              "type": "string"
-          }
-        }
-      }
-    }
-  }
+
+```yml
+# ...... rest of your spec
+components:
+  schemas:
+    Wallet:
+      type: object
+      required: # required fields are mentioned here
+      - id
+      - name
+      - type
+      - colour_code
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+          maxLength: 50 # min and max length
+          minLength: 1
+        description:
+          type: string
+          maxLength: 255
+        type:
+          enum: # enum can be used for indicating supported values
+          - Travel
+          - HouseholdExpenses
+          - Event
+          - Other
+          type: string
+        colour_code:
+          enum:
+          - Red
+          - Blue
+          - Green
+          type: string
 ```
 
 
