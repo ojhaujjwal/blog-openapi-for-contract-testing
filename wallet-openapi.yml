@@ -1,0 +1,106 @@
+openapi: 3.0.1
+info:
+  title: Wallet API
+  description: Definition of the Wallet API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /wallets/{walletId}:
+    get:
+      parameters:
+      - name: walletId
+        in: path
+        required: true
+        schema:
+          type: integer
+      summary: Read Wallet
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        404:
+          description: Wallet Not Found
+        500:
+          description: Internal Server error
+  /wallets:
+    post:
+      summary: Create Wallet
+      requestBody:
+        content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateWallet'
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        500:
+          description: Internal Server error
+        400:
+          description: Bad Request
+        422:
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - errors
+                properties:
+                  errors:
+                    type: array
+                    items: 
+                      type: string
+                      minLength: 1
+                      maxLength: 100
+                    example: 
+                      - 'Wallet with the same already exists.'
+                      - 'You have reached your max limit of 100 wallets.'
+      
+
+components:
+  schemas:
+    CreateWallet:
+      type: object
+      required:
+      - name
+      - type
+      - colour_code
+      properties:
+        name:
+          type: string
+          maxLength: 50
+          minLength: 1
+        description:
+          type: string
+          maxLength: 255
+        type:
+          enum:
+          - Travel
+          - HouseholdExpenses
+          - Event
+          - Other
+          type: string
+        colour_code:
+          enum:
+          - Red
+          - Blue
+          - Green
+          type: string
+    Wallet:
+      allOf:
+        - $ref: '#/components/schemas/CreateWallet'
+        - type: object
+          required:
+            - id
+          properties:
+            id:
+              type: number
+  
