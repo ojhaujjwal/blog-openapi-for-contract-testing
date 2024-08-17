@@ -44,9 +44,70 @@ app.use((err, req, res, next) => {
 });
 ```
 
+You could so a similiar thing in a PHP API using ThePHPLeague's `openapi-psr7-validator`. Here's a similiar example using a [PSR-15 middleware](https://www.php-fig.org/psr/psr-15/#22-psrhttpservermiddlewareinterface):
+
+```php
+namespace App\Http\Middleware;
+
+use League\OpenAPIValidation\PSR7\Exception\Validation\AddressValidationFailed;
+use League\OpenAPIValidation\PSR7\Exception\ValidationFailed;
+use League\OpenAPIValidation\PSR7\SchemaFactory\JsonFileFactory;
+use League\OpenAPIValidation\PSR7\ValidatorBuilder;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+use Nyholm\Psr7\Response;
+
+final readonly class OpenApiSpecValidatingPsrMiddleware implements MiddlewareInterface
+{
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+    {
+        $schema = (new JsonFileFactory('wallet-openapi.json'))->createSchema();
+
+        $requestValidator = (new ValidatorBuilder())
+            ->fromSchema($schema)
+            ->getServerRequestValidator();
+
+        try {
+            $matchedOperation = $requestValidator->validate($request);
+        } catch (ValidationFailed $e) {
+            return new Response(400, [], json_encode([
+                'error_code' => 'openapi_spec_request_parse_failed',
+                'error_message' => $e instanceof AddressValidationFailed ? $e->getVerboseMessage() : $e->getMessage(),
+            ]));
+        }
+
+        $response = $handler->handle($request);
+
+        $responseValidator = (new ValidatorBuilder())
+            ->fromSchema($schema)
+            ->getResponseValidator();
+
+        try {
+            $responseValidator->validate(
+                $matchedOperation,
+                $response,
+            );
+
+            return $response;
+        } catch (ValidationFailed $e) {
+            return new Response(500, [], json_encode([
+                'error_code' => 'openapi_spec_request_parse_failed',
+                'error_message' => $e instanceof AddressValidationFailed ? $e->getVerboseMessage() : $e->getMessage(),
+            ]));
+        }
+    }
+}
+
+```
+
 You can also run an OpenAPI proxy like [prism](https://github.com/stoplightio/prism), so you can do the [request and response validation in the proxy server](https://docs.stoplight.io/docs/prism/72d69fb629de0-validation-proxy) outside your application.
 
-### TODO: diagram for prism
+```sh
+npx prism proxy ./openapi-prod.json http:/localhost:3000 --errors
+```
+
 
 
 ### Why 400 for request matching the OpenAPI spec
@@ -64,11 +125,12 @@ openapi-generator generate -i ./stripe-openapi.json -g php-nextgen
 openapi-generator generate -i ./stripe-openapi.json -g js
 ```
 
-Using a generated API client would shift the responsibility of validation from runtime to static time. If your API clients use any form of pre-production static code analyzer and code linters, they could detect request not being valid in static time.
+Using a generated API client would shift the responsibility of validation from runtime to static time. If your API clients use some form of a good pre-production static code analyzer and code linters in CI, they could detect request not being valid well before deploying/releasing to production.  
 
 TODO: example of method not exists using SDK
 
 Another option is to send the raw requests manually but you could validate the the requests at runtime using openapi request validation libraries. For example:
+
 ```
 // todo; parse request to a openapi serber
 ```
@@ -182,4 +244,8 @@ const colourCode: ColourCode = body.colour_code;
 ```
 
 This is just a rough idea of how strict schema can be a game changer to the client with better IDE experience with code suggestions and failing build when type check fail. In real world, there are tons of tools like [openapi-zod-client](https://github.com/astahmer/openapi-zod-client) which can generate the API client as well as zod schemas for the requests and responses.
+
+## Final Thoughts
+The ecosystem of OpenAPI seems to have gotten bigger and bigger in the last few years. There are more widespread amount of tools to help with a variety of use-cases from client code generation, pre-production checks, mock servers, request/response validating proxies etc in a variety of languages. 
+This space is definitely worth looking into and see where it can help your organization.
 
