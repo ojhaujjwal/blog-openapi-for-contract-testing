@@ -44,7 +44,7 @@ app.use((err, req, res, next) => {
 });
 ```
 
-You could so a similiar thing in a PHP API using ThePHPLeague's `openapi-psr7-validator`. Here's a similiar example using a [PSR-15 middleware](https://www.php-fig.org/psr/psr-15/#22-psrhttpservermiddlewareinterface):
+You could so a similiar thing in a PHP API using ThePHPLeague's `openapi-psr7-validator`. Here's a similiar example implementation of a [PSR-15 middleware](https://www.php-fig.org/psr/psr-15/#22-psrhttpservermiddlewareinterface):
 
 ```php
 namespace App\Http\Middleware;
@@ -291,6 +291,6 @@ const colourCode: ColourCode = body.colour_code;
 This is just a rough idea of how strict schema can be a game changer to the client with better IDE experience with code suggestions and failing build when type check fail. In real world, there are tons of tools like [openapi-zod-client](https://github.com/astahmer/openapi-zod-client) which can generate the API client as well as zod schemas for the requests and responses.
 
 ## Final Thoughts
-The ecosystem of OpenAPI seems to have gotten bigger and bigger in the last few years. There are more widespread amount of tools to help with a variety of use-cases from client code generation, pre-production checks, mock servers, request/response validating proxies etc in a variety of languages. 
+The ecosystem of OpenAPI seems to have grown a lot in the last few years. There are more widespread amount of tools to help with a variety of use-cases from client code generation, pre-production checks, mock servers, request/response validating proxies etc in a variety of languages. 
 This space is definitely worth looking into and see where it can help your organization.
 
