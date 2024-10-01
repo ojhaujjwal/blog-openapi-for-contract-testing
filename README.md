@@ -6,11 +6,11 @@ OpenAPI, former known as Swagger, is a specification, usually expressed in JSON 
 It's a very powerful tool which I don't believe is used as much as it should.  Most people I have talked to think that it's just a way to generate API documentation. 
 I also remember talking to people who are not in love with OpenAPI because it gets outdated over time. People may change the API and forget to modify or re-generate the openapi spec. And voila! you have an OpenAPI spec which doesn't even represent how your API actually behaves. Your API clients find that the OpenAPI spec you have is merely a representation of how your API looked at some point in the past and you are back to the old-fashioned way of sharing the details about your API via slack messages.
 
-I am here to tell you that you can ensure your OpenAPI is **never** out of sync with how your API actually behaves. You could take it even a few step further and use it for contract testing.
+I am here to tell you that you can ensure your OpenAPI is **never** out of sync with how your API actually behaves. You could even take it few steps further and use it for contract testing.
 
 ## Ensuring OpenAPI spec is always in sync with your API
 
-Once you are ready to go down this route, there are a lot of ways to achieve this. One of the simples approach is integrating an OpenAPI validator in a language of your choice and validating requests and responses. 
+Once you are ready to go down this route, there are a lot of ways to achieve this. A straighforward approach is integrating an OpenAPI validator in a language of your choice and validating requests and responses against OpenAPI spec.
 
 I will show you a simple example for a node's [express](https://expressjs.com) based API using [express-openapi-validator](https://github.com/cdimascio/express-openapi-validator). Before I show you the code, I will list down some slightly opinionated choices that I have made about the validator.
 
@@ -44,7 +44,7 @@ app.use((err, req, res, next) => {
 });
 ```
 
-You could so a similiar thing in a PHP API using ThePHPLeague's `openapi-psr7-validator`. Here's a similiar example implementation of a [PSR-15 middleware](https://www.php-fig.org/psr/psr-15/#22-psrhttpservermiddlewareinterface):
+You could implement a similiar thing in a PHP API using ThePHPLeague's `openapi-psr7-validator`. Here's an example implementation of a [PSR-15 middleware](https://www.php-fig.org/psr/psr-15/#22-psrhttpservermiddlewareinterface):
 
 ```php
 namespace App\Http\Middleware;
@@ -128,33 +128,33 @@ openapi-generator generate -i ./stripe-openapi.json -g js
 Using a generated API client would shift the responsibility of validation from runtime to static time. If your API clients use some form of a good pre-production static code analyzer and code linters in CI, they could detect request not being valid well before deploying/releasing to production.  
 
 
-Another option is to send the raw requests manually but you could validate the the requests at runtime using openapi request validation libraries like [openapi-enforcer](https://www.npmjs.com/package/openapi-enforcer).
+Another option is to send the raw requests manually but you could validate the requests at runtime using openapi request validation libraries like [openapi-enforcer](https://www.npmjs.com/package/openapi-enforcer).
 
 Here's an example [axios](https://www.npmjs.com/package/axios) interceptor to validate all outgoing requests:
 
 ```js
 const openapi = await Enforcer('../wallet-openapi.yml');
 
-  axios.interceptors.request.use(function (config) {
-    const url = new URL(config.url);
-    
-    const [req, error] = openapi.request({
-      method: config.method,
-      path: url.pathname,
-      body: config.data,
-    });
-
-    if (error) {
-      return Promise.reject(error);
-    }
-
-    return config;
-  }, function (error) {
-    return Promise.reject(error);
+axios.interceptors.request.use(function (config) {
+  const url = new URL(config.url);
+  
+  const [req, error] = openapi.request({
+    method: config.method,
+    path: url.pathname,
+    body: config.data,
   });
+
+  if (error) {
+    return Promise.reject(error);
+  }
+
+  return config;
+}, function (error) {
+  return Promise.reject(error);
+});
 ```
 
-With the above configured axios interceptor, you can validat requests on the client too. Here's an example:
+With the above configured axios interceptor, you can validate requests on the client too. Here's an example:
 ```js
 const response = await axios.post('http://localhost:3000/wallets', {
   name: 'test',
@@ -178,7 +178,7 @@ try {
   console.error(error);
 }
 ```
-You can checkout the full setup on [js-client/axios-interceptor.js](js-client/axios-interceptor.js).
+You can checkout the full setup on [js-client/axios-interceptor.js](https://github.com/ojhaujjwal/blog-openapi-for-contract-testing/blob/main/js-client/axios-interceptor.js).
 
 When not using the openapi sdk, this is pretty crucial, specially if the API clients have enough automated tests where tests would fail if the request doesn't match the contract defined in OpenAPI spec and the mocked response are also validated against the OpenAPI spec.
 
@@ -187,7 +187,7 @@ If you have come this far, I imagine you are doing all of the things:
 - In the API server, you have some form of OpenAPI validation implemented in the server for both the incoming requests and the outgoing response.
 - In the API clients, you are either using the generated clients or using the openapi validator libraries for both request validation and response mock validation with enough automated test coverage.
 
-This enables you to release your clients and backend to deploy seperately without running a full range of E2E tests which are much slower and predictable in nature. 
+This enables you to release your clients and backend to deploy seperately without running a full range of E2E tests which are much slower and unpredictable (flaky) in nature. 
 That's basically contract testing. As long as both the server and the client abide to agree the contract in OpenAPI spec, they can deploy and release independantly.
 
 
@@ -220,7 +220,7 @@ components:
           type: string
 ```
 
-There's are a few problems with the above field
+There are few problems with the above spec:
 1. There's not enough information on what are the required fields. By default, all the fields are optional and will pass validation against the schema without any of the fields.
 2. Looks like type and colour_code are enum types, but there's not enough information on what are the allowed values of both of those fields.
 3. Min and max value for fields like name aren't specified? Can the API client send a full 500 words essay as wallet name? I would imagine that it should not be allowed.
