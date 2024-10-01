@@ -112,7 +112,7 @@ npx prism proxy ./openapi-prod.json http:/localhost:3000 --errors
 
 ### Why 400 for request matching the OpenAPI spec
 If you are really trying to use OpenAPI to it's full capability, your clients should ideally use OpenAPI spec as the first class citizen for integrating to your API. You may not able to control this if you have a public API, but you may have a say on this if you are exposing API to consumers at least within your company.
-I think it's totally fair to respond with 4xx because the client didn't meet the **contract** when sending the request. `400 Bad Request` means the server recived a request which it couldn't really understand or parse. 
+I think it's totally fair to respond with 4xx because the client didn't meet the **contract** when sending the request. `400 Bad Request` means the server received a request which it couldn't really understand or parse. 
 
 
 ## Using OpenAPI generated API client
@@ -127,13 +127,58 @@ openapi-generator generate -i ./stripe-openapi.json -g js
 
 Using a generated API client would shift the responsibility of validation from runtime to static time. If your API clients use some form of a good pre-production static code analyzer and code linters in CI, they could detect request not being valid well before deploying/releasing to production.  
 
-TODO: example of method not exists using SDK
 
-Another option is to send the raw requests manually but you could validate the the requests at runtime using openapi request validation libraries. For example:
+Another option is to send the raw requests manually but you could validate the the requests at runtime using openapi request validation libraries like [openapi-enforcer](https://www.npmjs.com/package/openapi-enforcer).
 
+Here's an example [axios](https://www.npmjs.com/package/axios) interceptor to validate all outgoing requests:
+
+```js
+const openapi = await Enforcer('../wallet-openapi.yml');
+
+  axios.interceptors.request.use(function (config) {
+    const url = new URL(config.url);
+    
+    const [req, error] = openapi.request({
+      method: config.method,
+      path: url.pathname,
+      body: config.data,
+    });
+
+    if (error) {
+      return Promise.reject(error);
+    }
+
+    return config;
+  }, function (error) {
+    return Promise.reject(error);
+  });
 ```
-// todo; parse request to a openapi serber
+
+With the above configured axios interceptor, you can validat requests on the client too. Here's an example:
+```js
+const response = await axios.post('http://localhost:3000/wallets', {
+  name: 'test',
+  type: 'Event',
+  colour_code: 'Green',
+});
+console.log(response.status); // 201
+
+try {
+  await axios.post('http://localhost:3000/wallets', {
+    name: 'test',
+    body: 'test',
+    description: 'Yellow',
+  });
+} catch (error) {
+  // [ EnforcerException: Request has one or more errors
+  //   In body
+  //     For Content-Type application/json
+  //       Invalid value
+  //         One or more required properties missing: type, colour_code ]
+  console.error(error);
+}
 ```
+You can checkout the full setup on [js-client/axios-interceptor.js](js-client/axios-interceptor.js).
 
 When not using the openapi sdk, this is pretty crucial, specially if the API clients have enough automated tests where tests would fail if the request doesn't match the contract defined in OpenAPI spec and the mocked response are also validated against the OpenAPI spec.
 
@@ -142,7 +187,7 @@ If you have come this far, I imagine you are doing all of the things:
 - In the API server, you have some form of OpenAPI validation implemented in the server for both the incoming requests and the outgoing response.
 - In the API clients, you are either using the generated clients or using the openapi validator libraries for both request validation and response mock validation with enough automated test coverage.
 
-This enables you to release your cliets and backend to deploy seperately without running a full range of E2E tests which are much slower and predictable in nature. 
+This enables you to release your clients and backend to deploy seperately without running a full range of E2E tests which are much slower and predictable in nature. 
 That's basically contract testing. As long as both the server and the client abide to agree the contract in OpenAPI spec, they can deploy and release independantly.
 
 
